@@ -1,8 +1,10 @@
+# Set the working directory to the folder containing the raw data
 setwd("D:\\1-Master of HSE\\2-Second Semester\\Study project\\First raw data\\Sorted")
+
+# Check the current working directory
 getwd()
 
-
-
+# Install and load necessary packages
 install.packages("SPEI")
 library(SPEI)
 library(dplyr)
@@ -10,170 +12,162 @@ library(tidyr)
 library(ggplot2)
 library(lubridate)
 
-wernersbach_data_daily = read.table("Wernersbach_2_EC.Towers_daily_2017.csv", sep = ",", dec = ".", header = T)
-wernersbach_data = read.table("Wernersbach_2_EC.Towers_monthly_1968-2019.csv", sep = ",", dec = ".", header = T)
+# Read daily and monthly datasets
+wernersbach_data_daily <- read.table("Wernersbach_2_EC.Towers_daily_2017.csv", sep = ",", dec = ".", header = TRUE)
+wernersbach_data <- read.table("Wernersbach_2_EC.Towers_monthly_1968-2019.csv", sep = ",", dec = ".", header = TRUE)
 
-wernersbach_data$ET_thorn = thornthwaite(Tave = wernersbach_data$Temperature.Mean_Avg_DegC,
-                                         lat = 50.966)
+# Calculate Thornthwaite evapotranspiration
+wernersbach_data$ET_thorn <- thornthwaite(Tave = wernersbach_data$Temperature.Mean_Avg_DegC, lat = 50.966)
 
-wernersbach_data$ET_har = hargreaves(Tmin = wernersbach_data$Temperature.Min_Avg_DegC,
-                                     Tmax = wernersbach_data$Temperature.Max_Avg_DegC,
-                                     Pre = wernersbach_data$Precipitation_Corrected_mm,
-                                     lat = 50.966)
+# Calculate Hargreaves evapotranspiration
+wernersbach_data$ET_har <- hargreaves(Tmin = wernersbach_data$Temperature.Min_Avg_DegC,
+                                      Tmax = wernersbach_data$Temperature.Max_Avg_DegC,
+                                      Pre = wernersbach_data$Precipitation_Corrected_mm,
+                                      lat = 50.966)
 
-AtmosphericPressure = 101.325*exp(-(9.80665*0.02896968*330)/(288.16*8.314462618))
+# Calculate atmospheric pressure
+AtmosphericPressure <- 101.325 * exp(-(9.80665 * 0.02896968 * 330) / (288.16 * 8.314462618))
 
-wernersbach_data$ET_pen = penman(Tmin = wernersbach_data$Temperature.Min_Avg_DegC,
-                                 Tmax = wernersbach_data$Temperature.Max_Avg_DegC,
-                                 U2 = wernersbach_data$Windspeed42m_Avg_ms.1,
-                                 Rs = wernersbach_data$GlobalRadiation_Avg_Wm.2*(0.0864),
-                                 P0 = 101.325,
-                                 P = AtmosphericPressure,
-                                 ed = wernersbach_data$VapourPressure_Avg_kPa,
-                                 z = 330,
-                                 crop = "tall",
-                                 lat = 50.966)
+# Calculate Penman evapotranspiration
+wernersbach_data$ET_pen <- penman(Tmin = wernersbach_data$Temperature.Min_Avg_DegC,
+                                  Tmax = wernersbach_data$Temperature.Max_Avg_DegC,
+                                  U2 = wernersbach_data$Windspeed42m_Avg_ms.1,
+                                  Rs = wernersbach_data$GlobalRadiation_Avg_Wm.2 * 0.0864,
+                                  P0 = 101.325,
+                                  P = AtmosphericPressure,
+                                  ed = wernersbach_data$VapourPressure_Avg_kPa,
+                                  z = 330,
+                                  crop = "tall",
+                                  lat = 50.966)
 
+# -------------------------------------------------------------
+# Plotting section
 
-##Plotting
-##change the format to date:
-wernersbach_data$ValueDateTime = as.Date(wernersbach_data$ValueDateTime,
-                                         format = "%d.%m.%Y")
+# Convert 'ValueDateTime' column to Date format
+wernersbach_data$ValueDateTime <- as.Date(wernersbach_data$ValueDateTime, format = "%d.%m.%Y")
+wernersbach_data_daily$ValueDateTime <- as.Date(wernersbach_data_daily$ValueDateTime, format = "%m/%d/%Y")
 
-wernersbach_data_daily$ValueDateTime = as.Date(wernersbach_data_daily$ValueDateTime,
-                                               format = "%m/%d/%Y")
-##optional: exract months:
-date_months = format(wernersbach_data$ValueDateTime, "%m")
-date_years = format(wernersbach_data$ValueDateTime, "%Y")
-date_days2017 = format(wernersbach_data_daily$ValueDateTime, "%d")
-date_months2017 = format(wernersbach_data_daily$ValueDateTime, "%m")
+# Optional: Extract months and years from the date column
+date_months <- format(wernersbach_data$ValueDateTime, "%m")
+date_years <- format(wernersbach_data$ValueDateTime, "%Y")
+date_days2017 <- format(wernersbach_data_daily$ValueDateTime, "%d")
+date_months2017 <- format(wernersbach_data_daily$ValueDateTime, "%m")
 
+# -------------------------------------------------------------
+# Daily Data Plots
 
-##plot the data:
-
-##daily
+# Plot Reference Evapotranspiration (Avg)
 boxplot(wernersbach_data_daily$ReferenceEvapotranspiration_Avg_mm)
-# Q <- quantile(wernersbach_data_daily$ReferenceEvapotranspiration_Avg_mm,
-#               probs=c(.25, .75), na.rm = FALSE)
-# iqr <- IQR(wernersbach_data_daily$ReferenceEvapotranspiration_Avg_mm)
-# up <-  Q[2]+1.5*iqr # Upper Range  
-# low<- Q[1]-1.5*iqr # Lower Range
-# wernersbach_data_daily <- subset(wernersbach_data_daily,
-#                         wernersbach_data_daily$ReferenceEvapotranspiration_Avg_mm > (Q[1] - 1.5*iqr) & 
-#                          wernersbach_data_daily$ReferenceEvapotranspiration_Avg_mm< (Q[2]+1.5*iqr))
-
 plot(wernersbach_data_daily$ValueDateTime,
      wernersbach_data_daily$ReferenceEvapotranspiration_Avg_mm,
      xlab = "Days of the year 2017",
-     ylab = "Refrence_ET")
+     ylab = "Reference ET (Avg)")
 
-##daily
+# Plot Evapotranspiration (DE.Tha)
 boxplot(wernersbach_data_daily$Evapotranspitation.DE.Tha_Sum_mm)
 plot(wernersbach_data_daily$ValueDateTime,
      wernersbach_data_daily$Evapotranspitation.DE.Tha_Sum_mm,
      xlab = "Days of the year 2017",
-     ylab = "Evapotranspitation.DE.Tha_Sum_mm")
+     ylab = "Evapotranspiration DE.Tha (Sum)")
 
-##daily
+# Plot Evapotranspiration (DE.Hzd)
 boxplot(wernersbach_data_daily$Evapotranspitation.DE.Hzd_Sum_mm)
 plot(wernersbach_data_daily$ValueDateTime,
      wernersbach_data_daily$Evapotranspitation.DE.Hzd_Sum_mm,
      xlab = "Days of the year 2017",
-     ylab = "Evapotranspitation.DE.Hzd_Sum_mm")
+     ylab = "Evapotranspiration DE.Hzd (Sum)")
 
-##daily_preciitation needs correction
+# -------------------------------------------------------------
+# Daily Precipitation Correction
+
+# Plot Precipitation (Corrected)
 boxplot(wernersbach_data_daily$Precipitation_Corrected_mm)
 
-outliers <- boxplot(wernersbach_data_daily$Precipitation_Corrected_mm, plot=FALSE)$out
-Q <- quantile(wernersbach_data_daily$Precipitation_Corrected_mm,
-              probs=c(.25, .75), na.rm = FALSE)
-
+# Correct outliers in Precipitation data
+outliers <- boxplot(wernersbach_data_daily$Precipitation_Corrected_mm, plot = FALSE)$out
+Q <- quantile(wernersbach_data_daily$Precipitation_Corrected_mm, probs = c(0.25, 0.75), na.rm = FALSE)
 iqr <- IQR(wernersbach_data_daily$Precipitation_Corrected_mm)
-up <-  Q[2]+1.5*iqr # Upper Range  
-low<- Q[1]-1.5*iqr # Lower Range
-wernersbach_data_daily$Precipitation_Corrected_mm[
-  wernersbach_data_daily$Precipitation_Corrected_mm > up] <- up
-wernersbach_data_daily$Precipitation_Corrected_mm[
-  wernersbach_data_daily$Precipitation_Corrected_mm < low] <- low
+up <- Q[2] + 1.5 * iqr  # Upper Range  
+low <- Q[1] - 1.5 * iqr # Lower Range
+wernersbach_data_daily$Precipitation_Corrected_mm[wernersbach_data_daily$Precipitation_Corrected_mm > up] <- up
+wernersbach_data_daily$Precipitation_Corrected_mm[wernersbach_data_daily$Precipitation_Corrected_mm < low] <- low
 
+# Plot corrected precipitation data
 plot(wernersbach_data_daily$ValueDateTime,
      wernersbach_data_daily$Precipitation_Corrected_mm,
      xlab = "Days of the year 2017",
-     ylab = "Precipitation_Corrected_mm")
+     ylab = "Precipitation (Corrected)")
 
-##daily_runoff needs correction
+# -------------------------------------------------------------
+# Daily Runoff Correction
+
+# Plot Runoff (Avg)
 boxplot(wernersbach_data_daily$Runoff_Avg_mm)
 
-outliers <- boxplot(wernersbach_data_daily$Runoff_Avg_mm, plot=FALSE)$out
-Q <- quantile(wernersbach_data_daily$Runoff_Avg_mm,
-              probs=c(.25, .75), na.rm = FALSE)
+# Correct outliers in Runoff data
+outliers <- boxplot(wernersbach_data_daily$Runoff_Avg_mm, plot = FALSE)$out
+Q <- quantile(wernersbach_data_daily$Runoff_Avg_mm, probs = c(0.25, 0.75), na.rm = FALSE)
 iqr <- IQR(wernersbach_data_daily$Runoff_Avg_mm)
-up <-  Q[2]+1.5*iqr # Upper Range  
-low<- Q[1]-1.5*iqr # Lower Range
-wernersbach_data_daily$Runoff_Avg_mm[
-  wernersbach_data_daily$Runoff_Avg_mm > up] <- up
-wernersbach_data_daily$Runoff_Avg_mm[
-  wernersbach_data_daily$Runoff_Avg_mm < low] <- low
+up <- Q[2] + 1.5 * iqr  # Upper Range  
+low <- Q[1] - 1.5 * iqr # Lower Range
+wernersbach_data_daily$Runoff_Avg_mm[wernersbach_data_daily$Runoff_Avg_mm > up] <- up
+wernersbach_data_daily$Runoff_Avg_mm[wernersbach_data_daily$Runoff_Avg_mm < low] <- low
 
+# Plot corrected runoff data
 plot(wernersbach_data_daily$ValueDateTime,
      wernersbach_data_daily$Runoff_Avg_mm,
      xlab = "Days of the year 2017",
-     ylab = "Runoff_Avg_mm")
+     ylab = "Runoff (Avg)")
 
-##daily
+# -------------------------------------------------------------
+# Other Daily Data Plots
+
+# Plot Global Radiation (Avg)
 boxplot(wernersbach_data_daily$GlobalRadiation_Avg_Wm.2)
-
 plot(wernersbach_data_daily$ValueDateTime,
      wernersbach_data_daily$GlobalRadiation_Avg_Wm.2,
      xlab = "Days of the year 2017",
-     ylab = "GlobalRadiation_Avg_Wm.2")
+     ylab = "Global Radiation (Avg W/m^2)")
 
-##daily
+# Plot Vapour Pressure (Avg)
 boxplot(wernersbach_data_daily$VapourPressure_Avg_kPa)
-
 plot(wernersbach_data_daily$ValueDateTime,
      wernersbach_data_daily$VapourPressure_Avg_kPa,
      xlab = "Days of the year 2017",
-     ylab = "VapourPressure_Avg_kPa")
+     ylab = "Vapour Pressure (Avg kPa)")
 
-##daily
+# Plot Temperature Min
 boxplot(wernersbach_data_daily$Temp.min)
 
-outliers <- boxplot(wernersbach_data_daily$Temp.min, plot=FALSE)$out
-Q <- quantile(wernersbach_data_daily$Temp.min,
-              probs=c(.25, .75), na.rm = FALSE)
+# Correct outliers in Temperature Min data
+outliers <- boxplot(wernersbach_data_daily$Temp.min, plot = FALSE)$out
+Q <- quantile(wernersbach_data_daily$Temp.min, probs = c(0.25, 0.75), na.rm = FALSE)
 iqr <- IQR(wernersbach_data_daily$Temp.min)
-up <-  Q[2]+1.5*iqr # Upper Range  
-low<- Q[1]-1.5*iqr # Lower Range
-wernersbach_data_daily$Temp.min[
-  wernersbach_data_daily$Temp.min > up] <- up
-wernersbach_data_daily$Temp.min[
-  wernersbach_data_daily$Temp.min < low] <- low
+up <- Q[2] + 1.5 * iqr  # Upper Range  
+low <- Q[1] - 1.5 * iqr # Lower Range
+wernersbach_data_daily$Temp.min[wernersbach_data_daily$Temp.min > up] <- up
+wernersbach_data_daily$Temp.min[wernersbach_data_daily$Temp.min < low] <- low
 
+# Plot corrected Temperature Min data
 plot(wernersbach_data_daily$ValueDateTime,
      wernersbach_data_daily$Temp.min,
      xlab = "Days of the year 2017",
-     ylab = "Temp.min")
+     ylab = "Temperature Min")
 
-##daily
+# Plot Temperature Max (Avg)
 boxplot(wernersbach_data_daily$Temperature.Max_Avg_DegC)
 plot(wernersbach_data_daily$ValueDateTime,
      wernersbach_data_daily$Temperature.Max_Avg_DegC,
      xlab = "Days of the year 2017",
-     ylab = "Temperature.Max_Avg_DegC")
+     ylab = "Temperature Max (Avg DegC)")
 
-##daily
+# Plot Temperature Mean (Avg)
 boxplot(wernersbach_data_daily$Temperature.Mean_Avg_DegC)
 plot(wernersbach_data_daily$ValueDateTime,
      wernersbach_data_daily$Temperature.Mean_Avg_DegC,
      xlab = "Days of the year 2017",
-     ylab = "Temperature.Max_Avg_DegC")
-
-##________________________________________________________##
-##________________________________________________________##
-
-
-
+     ylab = "Temperature Mean (Avg DegC)")
+## -------------------------------------------------------------##
 
 
 #monthly
